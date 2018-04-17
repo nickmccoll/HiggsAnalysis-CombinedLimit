@@ -58,7 +58,7 @@ DICTNAME=$(LIBNAME)_xr
 LD = g++
 ROOTLDFLAGS   = $(shell root-config --ldflags)
 ifeq ($(PLATFORM),macosx)
-LDFLAGS       = $(ROOTLDFLAGS) -dynamiclib -single_module -Wl,-rpath,$(ROOTSYS)/lib -install_name $(shell pwd)/$(LIB_DIR)/$(LIBNAME).so -lMathmore
+LDFLAGS       = $(ROOTLDFLAGS) -dynamiclib -single_module -Wl,-rpath,$(ROOTSYS)/lib -install_name $(shell pwd)/$(LIB_DIR)/$(SONAME) -lMathmore
 else
 LDFLAGS       = $(ROOTLDFLAGS) -rdynamic -shared -Wl,-soname,$(SONAME) -fPIC
 endif
