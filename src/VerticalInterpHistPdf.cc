@@ -272,7 +272,7 @@ void VerticalInterpHistPdf::syncTotal() const {
                 val += alpha; 
             }
         }    
-        if (val <= 0) val = 1e-9;
+        if (val <= 0) val = 1e-12;
         _cacheTotal->SetBinContent(b, val);
     }
     double norm = _cacheTotal->Integral("width");
@@ -950,8 +950,8 @@ Double_t FastVerticalInterpHistPdf2D2::evaluate() const
 void FastVerticalInterpHistPdf2::setActiveBins(unsigned int bins) {
   assert(bins <= _cacheNominal.fullsize());
   if (_cache.size() == 0) _cache = _cacheNominal; // _cache is not persisted
-  _cache.CropUnderflows(1e-9,false);        // set all bins, also the non-active ones
-  _cacheNominal.CropUnderflows(1e-9,false); // set all bins, also the non-active ones
+  _cache.CropUnderflows(1e-12,false);        // set all bins, also the non-active ones
+  _cacheNominal.CropUnderflows(1e-12,false); // set all bins, also the non-active ones
   _cache.SetActiveSize(bins);
   _cacheNominal.SetActiveSize(bins);
   _cacheNominalLog.SetActiveSize(bins);

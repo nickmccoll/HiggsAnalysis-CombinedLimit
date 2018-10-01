@@ -464,7 +464,7 @@ toymcoptutils::SimPdfGenInfo::generateEpsilon(RooRealVar *&weightVar)
             if (pdfs_[i]->mode() != SinglePdfGenInfo::Unbinned) continue;
             cat_->setBin(i);
             RooAbsData *&data =  datasetPieces_[cat_->getLabel()]; delete data;
-            data = pdfs_[i]->generateAsimov(weightVar, 1e-9); 
+            data = pdfs_[i]->generateAsimov(weightVar, 1e-12);
         }
         if (copyData_) { 
             RooArgSet vars(observables_), varsPlusWeight(observables_); varsPlusWeight.add(*weightVar);
@@ -482,7 +482,7 @@ toymcoptutils::SimPdfGenInfo::generateEpsilon(RooRealVar *&weightVar)
             // toy over-writes the memory of the previous one.
             ret = new RooDataSet(retName, "", observables_, RooFit::Index((RooCategory&)*cat_), RooFit::Link(datasetPieces_) /*, RooFit::OwnLinked()*/);
         }
-    } else ret = pdfs_[0]->generateAsimov(weightVar, 1e-9);
+    } else ret = pdfs_[0]->generateAsimov(weightVar, 1e-12);
     //std::cout << "Asimov dataset generated from sim pdf " << pdf_->GetName() << " (sumw? " << ret->sumEntries() << ")" << std::endl; 
     //utils::printRAD(ret);
     return ret;

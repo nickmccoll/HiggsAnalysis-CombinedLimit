@@ -66,7 +66,7 @@ class FastTemplate {
         /// Does this += x * (diff + (sum)*y)
         void Meld(const FastTemplate & diff, const FastTemplate & sum, T x, T y) ;
         /// protect from underflows (*this = max(*this, minimum));
-        void CropUnderflows(T minimum=1e-9, bool activebinsonly=true);
+        void CropUnderflows(T minimum=1e-12, bool activebinsonly=true);
 
         /// Tell the code that only the first N bins of the template are non-empty,
         /// and so that only those have to be considered when doing operations
