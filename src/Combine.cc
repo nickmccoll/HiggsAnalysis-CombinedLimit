@@ -75,7 +75,9 @@ TDirectory *writeToysHere = 0;
 TDirectory *readToysFromHere = 0;
 int  verbose = 1;
 bool withSystematics = 1;
+bool expectSignalSet_ = false;
 bool doSignificance_ = 0;
+bool expectSignalSet = 0;
 bool lowerLimit_ = 0;
 float cl = 0.95;
 bool bypassFrequentistFit_ = false;
@@ -182,7 +184,9 @@ void Combine::applyOptions(const boost::program_options::variables_map &vm) {
   saveToys_ = vm.count("saveToys");
   validateModel_ = vm.count("validateModel");
   const std::string &method = vm["method"].as<std::string>();
-
+  if (!(vm["expectSignal"].defaulted())) expectSignalSet_=true;
+  else expectSignalSet_=false;
+	
   if (method == "MultiDimFit" || ( method == "FitDiagnostics" && vm.count("justFit")) || method == "MarkovChainMC") {
     //CMSDAS new default,
     if (vm["noMCbonly"].defaulted()) noMCbonly_ = 1;
@@ -545,7 +549,7 @@ void Combine::run(TString hlfFile, const std::string &dataset, double &limit, do
 	// also set ignoreConstraint flag for constraint PDF 
 	if ( w->pdf(Form("%s_Pdf",arg->GetName())) ) w->pdf(Form("%s_Pdf",arg->GetName()))->setAttribute("ignoreConstraint");
       }
-      if (verbose > 0) std::cout << "Redefining the POIs to be: "; newPOIs.Print("");
+      if (verbose > 0) { std::cout << "Redefining the POIs to be: "; newPOIs.Print(""); }
       mc->SetParametersOfInterest(newPOIs);
       POI = mc->GetParametersOfInterest();
       if (nuisances) {
@@ -566,7 +570,14 @@ void Combine::run(TString hlfFile, const std::string &dataset, double &limit, do
 
   if (floatNuisances_ != "") {
       RooArgSet toFloat((floatNuisances_=="all")?*nuisances:(w->argSet(floatNuisances_.c_str())));
-      if (verbose > 0) std::cout << "Set floating the following parameters: "; toFloat.Print("");
+      if (verbose > 0) {  
+      	std::cout << "Set floating the following parameters: "; toFloat.Print(""); 
+        Logger::instance().log(std::string(Form("Combine.cc: %d -- Set floating the following parameters: ",__LINE__)),Logger::kLogLevelInfo,__func__); 
+        std::auto_ptr<TIterator> iter(toFloat.createIterator());
+        for (RooAbsArg *a = (RooAbsArg*) iter->Next(); a != 0; a = (RooAbsArg*) iter->Next()) {
+           Logger::instance().log(std::string(Form("Combine.cc: %d  %s ",__LINE__,a->GetName())),Logger::kLogLevelInfo,__func__); 
+	}
+      }
       utils::setAllConstant(toFloat, false);
   }
   
@@ -580,7 +591,7 @@ void Combine::run(TString hlfFile, const std::string &dataset, double &limit, do
           std::string poststr = freezeNuisances_.substr(pos2+1,freezeNuisances_.size()-pos2);
           std::string reg_esp = freezeNuisances_.substr(pos1+4,pos2-pos1-4);
           
-          std::cout<<"interpreting "<<reg_esp<<" as regex "<<std::endl;
+          //std::cout<<"interpreting "<<reg_esp<<" as regex "<<std::endl;
           std::regex rgx( reg_esp, std::regex::ECMAScript);
           
           std::string matchingParams="";
@@ -597,7 +608,14 @@ void Combine::run(TString hlfFile, const std::string &dataset, double &limit, do
       }
 
       RooArgSet toFreeze((freezeNuisances_=="all")?*nuisances:(w->argSet(freezeNuisances_.c_str())));
-      if (verbose > 0) std::cout << "Freezing the following nuisance parameters: "; toFreeze.Print("");
+      if (verbose > 0) {  
+      	std::cout << "Freezing the following parameters: "; toFreeze.Print("");
+        Logger::instance().log(std::string(Form("Combine.cc: %d -- Freezing the following parameters: ",__LINE__)),Logger::kLogLevelInfo,__func__); 
+        std::auto_ptr<TIterator> iter(toFreeze.createIterator());
+        for (RooAbsArg *a = (RooAbsArg*) iter->Next(); a != 0; a = (RooAbsArg*) iter->Next()) {
+           Logger::instance().log(std::string(Form("Combine.cc: %d  %s ",__LINE__,a->GetName())),Logger::kLogLevelInfo,__func__); 
+	}
+      }
       utils::setAllConstant(toFreeze, true);
       if (nuisances) {
           RooArgSet newnuis(*nuisances);
@@ -633,7 +651,7 @@ void Combine::run(TString hlfFile, const std::string &dataset, double &limit, do
 	  toFreeze.add(groupNuisances);
 	}
 	
-        if (verbose > 0) std::cout << "Freezing the following nuisance parameters: "; toFreeze.Print("");
+        if (verbose > 0) {  std::cout << "Freezing the following nuisance parameters: "; toFreeze.Print(""); }
         utils::setAllConstant(toFreeze, true);
         if (nuisances) {
           RooArgSet newnuis(*nuisances);
@@ -736,9 +754,15 @@ void Combine::run(TString hlfFile, const std::string &dataset, double &limit, do
   }
 
   // Print list of channel masks
-  if (verbose >= 2) {
-    RooSimultaneousOpt *simopt = dynamic_cast<RooSimultaneousOpt*>(mc->GetPdf());
-    if (simopt && simopt->channelMasks().getSize() > 0) {
+  RooSimultaneousOpt *simopt = dynamic_cast<RooSimultaneousOpt*>(mc->GetPdf());
+  if (simopt && simopt->channelMasks().getSize() > 0) {
+    int nChnMasks = simopt->channelMasks().getSize();
+    int nActiveMasks = 0;
+    for (int iMask=0; iMask < nChnMasks; iMask++){
+      if (dynamic_cast<RooRealVar*>(simopt->channelMasks().at(iMask))->getVal() > 0) nActiveMasks++;
+    }
+    std::cout << ">>> "<<nActiveMasks<<" out of "<<nChnMasks<<" channels masked\n"<<std::endl;
+    if (verbose >= 2) {
       std::cout << ">>> Channel masks:\n";
       simopt->channelMasks().Print("v");
     }
