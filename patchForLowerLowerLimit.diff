@@ -1,0 +1,85 @@
+diff --git a/interface/FastTemplate.h b/interface/FastTemplate.h
+index 993f401..86d2e78 100644
+--- a/interface/FastTemplate.h
++++ b/interface/FastTemplate.h
+@@ -99,7 +99,7 @@ public:
+         /// Does this += x * (diff + (sum)*y)
+         void Meld(const FastTemplate_t<T> & diff, const FastTemplate_t<T> & sum, T x, T y);
+         /// protect from underflows (*this = max(*this, minimum));
+-        void CropUnderflows(T minimum=1e-9, bool activebinsonly=true);
++        void CropUnderflows(T minimum=1e-12, bool activebinsonly=true);
+ 
+         /// Tell the code that only the first N bins of the template are non-empty,
+         /// and so that only those have to be considered when doing operations
+diff --git a/interface/FastTemplate_Old.h b/interface/FastTemplate_Old.h
+index 61ff1a5..beda499 100644
+--- a/interface/FastTemplate_Old.h
++++ b/interface/FastTemplate_Old.h
+@@ -66,7 +66,7 @@ class FastTemplate {
+         /// Does this += x * (diff + (sum)*y)
+         void Meld(const FastTemplate & diff, const FastTemplate & sum, T x, T y) ;
+         /// protect from underflows (*this = max(*this, minimum));
+-        void CropUnderflows(T minimum=1e-9, bool activebinsonly=true);
++        void CropUnderflows(T minimum=1e-12, bool activebinsonly=true);
+ 
+         /// Tell the code that only the first N bins of the template are non-empty,
+         /// and so that only those have to be considered when doing operations
+diff --git a/src/CachingNLL.cc b/src/CachingNLL.cc
+index cee7cbf..08bd5c3 100644
+--- a/src/CachingNLL.cc
++++ b/src/CachingNLL.cc
+@@ -1017,7 +1017,7 @@ cacheutils::CachingSimNLL::evaluate() const
+     		Logger::instance().log(std::string(Form("CachingNLL.cc: %d -- underflow (pdf evaluates to <=0) of constraint pdf %s, value = %g ",__LINE__,(*it)->GetName(), pdfval)),Logger::kLogLevelInfo,__func__);
+                 if (gentleNegativePenalty_) { ret += 25; continue; }
+                 if (!noDeepLEE_) logEvalError((std::string("Constraint pdf ")+(*it)->GetName()+" evaluated to zero, negative or error").c_str());
+-                pdfval = 1e-9;
++                pdfval = 1e-12;
+             }
+             ret2 += (log(pdfval) + *itz);
+         }
+diff --git a/src/ToyMCSamplerOpt.cc b/src/ToyMCSamplerOpt.cc
+index 4a8515a..17fbe5d 100644
+--- a/src/ToyMCSamplerOpt.cc
++++ b/src/ToyMCSamplerOpt.cc
+@@ -464,7 +464,7 @@ toymcoptutils::SimPdfGenInfo::generateEpsilon(RooRealVar *&weightVar)
+             if (pdfs_[i]->mode() != SinglePdfGenInfo::Unbinned) continue;
+             cat_->setBin(i);
+             RooAbsData *&data =  datasetPieces_[cat_->getLabel()]; delete data;
+-            data = pdfs_[i]->generateAsimov(weightVar, 1e-9); 
++            data = pdfs_[i]->generateAsimov(weightVar, 1e-12);
+         }
+         if (copyData_) { 
+             RooArgSet vars(observables_), varsPlusWeight(observables_); varsPlusWeight.add(*weightVar);
+@@ -482,7 +482,7 @@ toymcoptutils::SimPdfGenInfo::generateEpsilon(RooRealVar *&weightVar)
+             // toy over-writes the memory of the previous one.
+             ret = new RooDataSet(retName, "", observables_, RooFit::Index((RooCategory&)*cat_), RooFit::Link(datasetPieces_) /*, RooFit::OwnLinked()*/);
+         }
+-    } else ret = pdfs_[0]->generateAsimov(weightVar, 1e-9);
++    } else ret = pdfs_[0]->generateAsimov(weightVar, 1e-12);
+     //std::cout << "Asimov dataset generated from sim pdf " << pdf_->GetName() << " (sumw? " << ret->sumEntries() << ")" << std::endl; 
+     //utils::printRAD(ret);
+     return ret;
+diff --git a/src/VerticalInterpHistPdf.cc b/src/VerticalInterpHistPdf.cc
+index 95fccf3..3b706df 100644
+--- a/src/VerticalInterpHistPdf.cc
++++ b/src/VerticalInterpHistPdf.cc
+@@ -272,7 +272,7 @@ void VerticalInterpHistPdf::syncTotal() const {
+                 val += alpha; 
+             }
+         }    
+-        if (val <= 0) val = 1e-9;
++        if (val <= 0) val = 1e-12;
+         _cacheTotal->SetBinContent(b, val);
+     }
+     double norm = _cacheTotal->Integral("width");
+@@ -950,8 +950,8 @@ Double_t FastVerticalInterpHistPdf2D2::evaluate() const
+ void FastVerticalInterpHistPdf2::setActiveBins(unsigned int bins) {
+   assert(bins <= _cacheNominal.fullsize());
+   if (_cache.size() == 0) _cache = _cacheNominal; // _cache is not persisted
+-  _cache.CropUnderflows(1e-9,false);        // set all bins, also the non-active ones
+-  _cacheNominal.CropUnderflows(1e-9,false); // set all bins, also the non-active ones
++  _cache.CropUnderflows(1e-12,false);        // set all bins, also the non-active ones
++  _cacheNominal.CropUnderflows(1e-12,false); // set all bins, also the non-active ones
+   _cache.SetActiveSize(bins);
+   _cacheNominal.SetActiveSize(bins);
+   _cacheNominalLog.SetActiveSize(bins);

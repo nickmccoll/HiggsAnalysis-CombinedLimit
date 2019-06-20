@@ -1,0 +1,122 @@
+diff --git a/interface/GoodnessOfFit.h b/interface/GoodnessOfFit.h
+index 5b1c1f3..c701ecc 100644
+--- a/interface/GoodnessOfFit.h
++++ b/interface/GoodnessOfFit.h
+@@ -45,6 +45,8 @@ protected:
+ 
+   static std::string setParametersForFit_;
+   static std::string setParametersForEval_;
++  static std::string dataMJFilter_;
++  static std::string dataMRFilter_;
+ 
+   // Return a pdf that matches this data perfectly.
+   RooAbsPdf *makeSaturatedPdf(RooAbsData &data);
+diff --git a/src/GoodnessOfFit.cc b/src/GoodnessOfFit.cc
+index 30f71af..75184e0 100644
+--- a/src/GoodnessOfFit.cc
++++ b/src/GoodnessOfFit.cc
+@@ -45,6 +45,9 @@ std::vector<std::string>  GoodnessOfFit::binNames_;
+ std::vector<float>        GoodnessOfFit::qVals_;
+ std::string GoodnessOfFit::setParametersForFit_ = "";
+ std::string GoodnessOfFit::setParametersForEval_ = "";
++std::string GoodnessOfFit::dataMJFilter_= "";
++std::string GoodnessOfFit::dataMRFilter_= "";
++
+ 
+ GoodnessOfFit::GoodnessOfFit() :
+     LimitAlgo("GoodnessOfFit specific options")
+@@ -58,6 +61,8 @@ GoodnessOfFit::GoodnessOfFit() :
+   //      ("minimizerStrategy",  boost::program_options::value<int>(&minimizerStrategy_)->default_value(minimizerStrategy_),      "Stragegy for minimizer")
+         ("fixedSignalStrength", boost::program_options::value<float>(&mu_)->default_value(mu_),  "Compute the goodness of fit for a fixed signal strength. If not specified, it's left floating")
+         ("plots",  "Make plots containing information of the computation of the Anderson-Darling or Kolmogorov-Smirnov test statistic")
++        ("dataMJFilter",   boost::program_options::value<std::string>(&dataMJFilter_)->default_value(""), "Set filter for the dataset")
++        ("dataMRFilter",   boost::program_options::value<std::string>(&dataMRFilter_)->default_value(""), "Set filter for the dataset")
+     ;
+ }
+ 
+@@ -176,6 +181,35 @@ bool GoodnessOfFit::runSaturatedModel(RooWorkspace *w, RooStats::ModelConfig *mc
+   std::auto_ptr<RooAbsReal> nominal_nll(pdf_nominal->createNLL(data, constrainCmdArg));
+   std::auto_ptr<RooAbsReal> saturated_nll(saturated->createNLL(data, constrainCmdArg));
+ 
++  ///***HACK***///
++  bool doFilter = false;
++  auto filter = [&](const bool isMJ){
++      const std::string inexp = isMJ ? dataMJFilter_ : dataMRFilter_;
++      if(!inexp.size()) return;
++      doFilter = true;
++
++      std::vector<std::string> grps;
++      boost::algorithm::split(grps,inexp,boost::algorithm::is_any_of(","));
++      float min    = std::atof(grps[0].c_str());
++      float max    = std::atof(grps[1].c_str());
++      std::cout << (isMJ ? "MJ" :  "MR") <<" "<< min <<" "<<max<<std::endl;
++      w->var( isMJ ? "MJ" :  "MR")->setRange("an",min,max);
++
++
++  };
++  filter(true);
++  filter(false);
++  std::auto_ptr<RooAbsData> data2;
++  std::auto_ptr<RooAbsReal> re_nominal_nll;
++  std::auto_ptr<RooAbsReal> re_saturated_nll;
++
++  if(doFilter){
++      data2.reset(data.reduce(RooFit::CutRange("an")));
++      re_nominal_nll.reset(pdf_nominal->createNLL(*data2, constrainCmdArg));
++      re_saturated_nll.reset(saturated->createNLL(*data2, constrainCmdArg));
++  }
++  ///***HACK***///
++
+   if (setParametersForFit_ != "") {
+     utils::setModelParameters(setParametersForFit_, w->allVars());
+   }
+@@ -193,6 +227,15 @@ bool GoodnessOfFit::runSaturatedModel(RooWorkspace *w, RooStats::ModelConfig *mc
+     utils::setModelParameters(setParametersForEval_, w->allVars());
+   }
+   double nll_nominal = nominal_nll->getVal();
++  ///***HACK***///
++  double re_nll_nominal=0;
++  if(doFilter){
++      if (dynamic_cast<cacheutils::CachingSimNLL*>(re_nominal_nll.get())) {
++        static_cast<cacheutils::CachingSimNLL*>(re_nominal_nll.get())->clearConstantZeroPoint();
++      }
++      re_nll_nominal = re_nominal_nll->getVal();
++  }
++  //***HACK***///
+ 
+   if (setParametersForFit_ != "") {
+     utils::setModelParameters(setParametersForFit_, w->allVars());
+@@ -209,6 +252,19 @@ bool GoodnessOfFit::runSaturatedModel(RooWorkspace *w, RooStats::ModelConfig *mc
+   }
+   double nll_saturated = saturated_nll->getVal();
+ 
++  ///***HACK***///
++  double re_nll_saturated=0;
++  double re_limit=0;
++  if(doFilter){
++      if (dynamic_cast<cacheutils::CachingSimNLL*>(re_saturated_nll.get())) {
++        static_cast<cacheutils::CachingSimNLL*>(re_saturated_nll.get())->clearConstantZeroPoint();
++      }
++      re_nll_saturated = re_saturated_nll->getVal();
++      if (fabs(re_nll_nominal) > 1e10 || fabs(re_nll_saturated) > 1e10) return false;
++      re_limit = 2*(re_nll_nominal-re_nll_saturated);
++  }
++  //***HACK***//
++
+   sentry.clear();
+ 
+   saturated.reset();
+@@ -220,6 +276,13 @@ bool GoodnessOfFit::runSaturatedModel(RooWorkspace *w, RooStats::ModelConfig *mc
+ 
+   std::cout << "\n --- GoodnessOfFit --- " << std::endl;
+   std::cout << "Best fit test statistic: " << limit << std::endl;
++
++  if(doFilter){
++      std::cout << "Best fit test statistic (full): " << limit <<" "<<nll_nominal<<" "<<nll_saturated<< std::endl;
++      std::cout << "Best fit test statistic (reduced): " << re_limit <<" "<<re_nll_nominal<<" "<<re_nll_saturated<< std::endl;
++      limit=re_limit;
++  }
++
+   return true;
+ }
+ 
