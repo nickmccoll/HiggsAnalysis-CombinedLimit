@@ -1024,7 +1024,7 @@ cacheutils::CachingSimNLL::evaluate() const
     		Logger::instance().log(std::string(Form("CachingNLL.cc: %d -- underflow (pdf evaluates to <=0) of constraint pdf %s, value = %g ",__LINE__,(*it)->GetName(), pdfval)),Logger::kLogLevelInfo,__func__);
                 if (gentleNegativePenalty_) { ret += 25; continue; }
                 if (!noDeepLEE_) logEvalError((std::string("Constraint pdf ")+(*it)->GetName()+" evaluated to zero, negative or error").c_str());
-                pdfval = 1e-9;
+                pdfval = 1e-12;
             }
             ret2 += (log(pdfval) + *itz);
         }
