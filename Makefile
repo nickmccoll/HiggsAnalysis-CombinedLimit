@@ -45,7 +45,7 @@ ifeq ($(PLATFORM),macosx)
 CCFLAGS = -D STANDALONE $(ROOTCFLAGS) -I$(BOOST)/include -I$(VDT)/include -g -fPIC
 # CMSSW CXXFLAGS plus -Wno-unused-local-typedefs (otherwise we get a flood of messages from BOOST) plus -Wno-unused-function
 CCFLAGS += -O2 -pedantic -pthread -pipe -Wno-vla -Werror=overflow -Wstrict-overflow -std=c++0x -msse3 -ftree-vectorize -Wno-strict-overflow -Werror=array-bounds -Werror=type-limits -fvisibility-inlines-hidden -fno-math-errno -felide-constructors -fmessage-length=0 -ftemplate-depth-300 -Wall -Wno-long-long -Wreturn-type -Wunused -Wparentheses -Wno-deprecated -Werror=return-type -Werror=missing-braces -Werror=unused-value -Werror=address -Werror=format -Werror=sign-compare -Werror=write-strings -Werror=delete-non-virtual-dtor -Werror=strict-aliasing -Werror=narrowing -Werror=uninitialized -Werror=reorder -Werror=unused-variable -Werror=conversion-null -Werror=switch -fdiagnostics-show-option -DBOOST_DISABLE_ASSERTS -Wno-unused-local-typedefs -Wno-unused-function -Wno-mismatched-tags -Wno-overloaded-virtual -Wno-unknown-pragmas -Wno-unused-variable -Wno-potentially-evaluated-expression -Wno-format-security
-LIBS = $(ROOTLIBS) -L$(BOOST)/lib -l RooFit -lRooFitCore -l RooStats -l Minuit -l Foam -lHistFactory -lboost_filesystem -lboost_program_options -lboost_system -lvdt 
+LIBS = $(ROOTLIBS) -L$(BOOST)/lib -l RooFit -lRooFitCore -l RooStats -l Minuit -l MathMore -l Foam -lHistFactory -lboost_filesystem -lboost_program_options -lboost_system -lvdt 
 else
 CCFLAGS = -D STANDALONE $(ROOTCFLAGS) -I$(BOOST)/include -I$(VDT)/include -g -fPIC
 # CMSSW CXXFLAGS plus -Wno-unused-local-typedefs (otherwise we get a flood of messages from BOOST) plus -Wno-unused-function
@@ -62,7 +62,7 @@ DICTNAME=$(LIBNAME)_xr
 LD = g++
 ROOTLDFLAGS   = $(shell root-config --ldflags)
 ifeq ($(PLATFORM),macosx)
-LDFLAGS       = $(ROOTLDFLAGS) -rdynamic -shared -fPIC -lMathmore
+LDFLAGS       = $(ROOTLDFLAGS) -rdynamic -shared -rpath $(ROOTSYS)/lib -install_name $(shell pwd)/$(LIB_DIR)/$(SONAME) -fPIC -lMathmore
 else
 LDFLAGS       = $(ROOTLDFLAGS) -rdynamic -shared -Wl,-soname,$(SONAME) -fPIC
 endif
@@ -143,6 +143,9 @@ lib: dirs ${LIB_DIR}/$(SONAME)
 ${LIB_DIR}/$(SONAME):$(addprefix $(OBJ_DIR)/,$(OBJS)) $(OBJ_DIR)/a/$(DICTNAME).o 
 #	@echo "\n*** Building $(SONAME) library:"
 	$(LD) $(LDFLAGS) $(BOOST_INC) $(addprefix $(OBJ_DIR)/,$(OBJS)) $(OBJ_DIR)/a/$(DICTNAME).o $(SOFLAGS) -o $@ $(LIBS)
+ifeq ($(PLATFORM),macosx)
+	install_name_tool -change libvdt.dylib @rpath/libvdt.dylib $@
+endif	
 
 #---------------------------------------
 
